@@ -1,0 +1,10 @@
+services:
+  db:
+    image: kartoza/postgis:latest
+    container_name: postgres_db
+    restart: unless-stopped
+    env_file: ".env"
+    environment:
+      POSTGRES_MULTIPLE_EXTENSIONS: pgrouting
+    ports:
+      - "5432:5432"
