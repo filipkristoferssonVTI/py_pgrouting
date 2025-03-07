@@ -4,7 +4,8 @@ from typing import Literal
 
 import geopandas as gpd
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import DeclarativeBase
 
 
 class DBC:
@@ -44,6 +45,20 @@ class DBC:
             sql = 'COPY {} ({}) FROM STDIN WITH CSV'.format(
                 table_name, columns)
             cur.copy_expert(sql=sql, file=s_buf)
+
+    def create_tables(self, base: type[DeclarativeBase], replace: bool = False):
+        engine = create_engine(self._create_conn_url())
+        if replace:
+            base.metadata.drop_all(engine)
+        base.metadata.create_all(engine)
+
+    def execute_query(self, query: str):
+        engine = create_engine(self._create_conn_url())
+        with engine.connect() as connection:
+            with connection.begin():
+                result = connection.execute(text(query))
+                for row in result:
+                    print(row)
 
     def query_2_df(self, query: str, **kwargs) -> pd.DataFrame:
         engine = create_engine(self._create_conn_url())
