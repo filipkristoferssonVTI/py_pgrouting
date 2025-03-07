@@ -1,13 +1,35 @@
 import os
+from pathlib import Path
 
 import geopandas as gpd
 from dotenv import load_dotenv
-from shapely import Point
+from geoalchemy2 import Geometry
+from sqlalchemy import Integer, Column, Float
+from sqlalchemy.orm import DeclarativeBase
 
 from utils.db_connector import DBC
 
 
+class Base(DeclarativeBase):
+    pass
+
+
+class RoadTable(Base):
+    __tablename__ = 'roads'
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    source = Column(Integer)
+    target = Column(Integer)
+    cost = Column(Float, nullable=False)
+    reverse_cost = Column(Float, nullable=False)
+    geometry = Column(Geometry('LINESTRING', srid=3006))
+
+
 def main():
+    data_folder = Path('data')
+    network = gpd.read_file(data_folder / 'network.gpkg')
+
     load_dotenv()
 
     dbc = DBC(user=os.getenv("POSTGRES_USER"),
@@ -16,19 +38,10 @@ def main():
               host=os.getenv("POSTGRES_HOST"),
               port=os.getenv("POSTGRES_PORT"))
 
-    data = {
-        'Name': ['Alice', 'Bob', 'Charlie'],
-        'Age': [25, 30, 35],
-        'geometry': [Point(-74.006, 40.7128), Point(-118.2437, 34.0522), Point(-87.6298, 41.8781)]
-    }
+    dbc.create_tables(Base, replace=True)
+    dbc.gdf_2_db(network, table='roads')
 
-    gdf = gpd.GeoDataFrame(data, geometry='geometry', crs='EPSG:3006')
-
-    dbc.gdf_2_db(gdf=gdf, table='test', if_exists='replace')
-
-    test = dbc.query_2_gdf("""SELECT * FROM test""")
-
-    DEBUG = 1
+    dbc.execute_query("SELECT pgr_createTopology('roads', 0.0001, 'geometry', clean := true);")
 
 
 if __name__ == '__main__':
