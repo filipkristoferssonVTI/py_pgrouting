@@ -57,8 +57,9 @@ class DBC:
         with engine.connect() as connection:
             with connection.begin():
                 result = connection.execute(text(query))
-                for row in result:
-                    print(row)
+                if result.returns_rows:
+                    for row in result:
+                        print(row)
 
     def query_2_df(self, query: str, **kwargs) -> pd.DataFrame:
         engine = create_engine(self._create_conn_url())
