@@ -8,8 +8,8 @@ def main():
 
     points = (gpd.read_file(
         data_folder / 'gis' / 'test_grid.gpkg',
-        columns=['cellId', 'geometry'])
-              .rename(columns={'cellId': 'id'}))
+        columns=['fid', 'geometry'])
+              .rename(columns={'fid': 'id'}))
 
     points['geometry'] = points['geometry'].centroid
 
