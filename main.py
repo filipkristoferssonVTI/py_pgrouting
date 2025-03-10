@@ -60,15 +60,27 @@ class Queries:
         );
     """
 
-    COMPUTE_OD_MATRIX = """
-        INSERT INTO od_matrix (origin, destination, cost)
-        SELECT start_vid, end_vid, agg_cost
-        FROM pgr_dijkstraCostMatrix(
-            'SELECT id, source, target, cost FROM roads',
-            (SELECT array_agg(nearest_node) FROM points),
-            directed := false
-        );
-    """
+    @staticmethod
+    def COMPUTE_OD_MATRIX(origin_nodes):
+        origins_str = ", ".join(map(str, origin_nodes))
+        return f"""
+            WITH cost_matrix AS (
+                SELECT * FROM pgr_dijkstraCost(
+                    'SELECT id, source, target, cost FROM roads',
+                    (SELECT array_agg(nearest_node) FROM points WHERE id IN ({origins_str})),
+                    (SELECT array_agg(nearest_node) FROM points),
+                    directed := false
+                )
+            )
+            INSERT INTO od_matrix (origin, destination, cost)
+            SELECT 
+                p1.id AS origin,
+                p2.id AS destination,  
+                c.agg_cost
+            FROM cost_matrix c
+            JOIN points p1 ON c.start_vid = p1.nearest_node
+            JOIN points p2 ON c.end_vid = p2.nearest_node;
+        """
 
 
 def main():
@@ -84,14 +96,14 @@ def main():
               host=os.getenv("POSTGRES_HOST"),
               port=os.getenv("POSTGRES_PORT"))
 
-    # dbc.create_tables(Base, replace=True)
-    #
-    # dbc.gdf_2_db(network, table='roads')
-    # dbc.gdf_2_db(points, table='points')
-    #
-    # dbc.execute_query(Queries.CREATE_TOPOLOGY)
-    # dbc.execute_query(Queries.ASSIGN_NEAREST_NODE)
-    # dbc.execute_query(Queries.COMPUTE_OD_MATRIX)
+    dbc.create_tables(Base, replace=True)
+
+    dbc.gdf_2_db(network, table='roads')
+    dbc.gdf_2_db(points, table='points')
+
+    dbc.execute_query(Queries.CREATE_TOPOLOGY)
+    dbc.execute_query(Queries.ASSIGN_NEAREST_NODE)
+    dbc.execute_query(Queries.COMPUTE_OD_MATRIX([30, 40, 50]))
 
     OD = dbc.query_2_df("SELECT * FROM od_matrix")
 
