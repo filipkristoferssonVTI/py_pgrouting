@@ -11,7 +11,8 @@ from sqlalchemy.orm import DeclarativeBase
 class DBC:
     """Database Connection Class for PostgreSQL Databases."""
 
-    def __init__(self, host: str, database: str, port: str, user: str, password: str, driver: str = 'postgresql'):
+    def __init__(self, host: str, database: str, port: str, user: str, password: str,
+                 driver: str = 'postgresql+psycopg'):
         self.host = host
         self.database = database
         self.port = port
@@ -53,7 +54,7 @@ class DBC:
         base.metadata.create_all(engine)
 
     def execute_query(self, query: str):
-        engine = create_engine(self._create_conn_url())
+        engine = create_engine(self._create_conn_url(), pool_pre_ping=True)
         with engine.connect() as connection:
             with connection.begin():
                 result = connection.execute(text(query))
